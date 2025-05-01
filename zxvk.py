@@ -1,5 +1,7 @@
 import os
 import sys
+from datetime import datetime
+import json
 import socket
 import threading
 import time
@@ -12,6 +14,28 @@ import re
 from colorama import init, Fore, Style
 
 init(autoreset=True)
+
+# Database JSON para armazenar consultas
+DB_FILENAME = 'ip_queries.json'
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), DB_FILENAME)
+if not os.path.exists(DB_PATH):
+    with open(DB_PATH, 'w', encoding='utf-8') as f:
+        json.dump([], f)
+
+
+def load_queries():
+    """Carrega lista de consultas salvas."""
+    try:
+        with open(DB_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def save_queries(data):
+    """Salva lista de consultas no arquivo JSON."""
+    with open(DB_PATH, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 # Database
 DB_FILENAME = 'database.txt'
@@ -43,7 +67,7 @@ def show_banner():
         "╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚═╝  ╚═╝"
     )
     print(Fore.RED + art)
-    print(Fore.YELLOW + "By encrypted64_ - discord.gg/TWHMMJpRMb")
+    print(Fore.YELLOW + "ZxVk Terminal")
 
 
 def loading():
@@ -312,6 +336,69 @@ def find_admin_page():
         print(Fore.CYAN + f"Total encontradas: {len(found)}")
     input(Fore.BLUE + "Pressione Enter para voltar ao menu...")
 
+    # Consulta ip - 10
+def consulta_ip_info_detalhada():
+    """
+    Consulta informações completas de geolocalização e rede de um IP ou domínio
+    usando a API do ip-api.com, salva o resultado em JSON e oferece busca no Google Maps.
+    """
+    alvo = input(Fore.YELLOW + "Informe IP ou domínio: ").strip()
+    # Resolve domínio para IP, se necessário
+    try:
+        ip = socket.gethostbyname(alvo)
+    except socket.gaierror:
+        print(Fore.RED + f"Não foi possível resolver domínio: {alvo}")
+        return
+
+    print(Fore.CYAN + f"Consultando informações para {ip}...\n")
+    fields = (
+        'status,message,query,country,countryCode,region,regionName,city,zip,'
+        'lat,lon,timezone,isp,org,as,reverse,mobile,proxy'
+    )
+    try:
+        resp = requests.get(
+            f"http://ip-api.com/json/{ip}?fields={fields}", timeout=5
+        ).json()
+    except requests.RequestException as e:
+        print(Fore.RED + f"Erro na requisição: {e}")
+        return
+
+    if resp.get("status") != "success":
+        print(Fore.RED + f"Falha na consulta: {resp.get('message', 'unknown error')}")
+        return
+
+    # Exibe resultados
+    print(Style.BRIGHT + Fore.GREEN + f"IP:               {resp.get('query')}")
+    print(Fore.GREEN + f"País:             {resp.get('country')} ({resp.get('countryCode')})")
+    print(Fore.GREEN + f"Região:           {resp.get('regionName')} ({resp.get('region')})")
+    print(Fore.GREEN + f"Cidade:           {resp.get('city')} | CEP: {resp.get('zip')}")
+    lat = resp.get('lat')
+    lon = resp.get('lon')
+    print(Fore.GREEN + f"Coordenadas:      {lat}, {lon}")
+    print(Fore.GREEN + f"Fuso horário:     {resp.get('timezone')}")
+    print(Fore.GREEN + f"ISP:              {resp.get('isp')}")
+    print(Fore.GREEN + f"Organização:      {resp.get('org')}")
+    print(Fore.GREEN + f"Sistema Autônomo: {resp.get('as')}")
+    print(Fore.GREEN + f"Reverse DNS:      {resp.get('reverse')}")
+    print(Fore.GREEN + f"Mobile:           {resp.get('mobile')}")
+    print(Fore.GREEN + f"Proxy:            {resp.get('proxy')}")
+
+    # Prompt de pesquisa no Google Maps logo após 'Proxy'
+    maps_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+    print(Fore.YELLOW + f"Google Maps: {maps_url}")
+
+    # Salva consulta no JSON
+    registro = {
+        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'query': resp.get('query'),
+        'result': resp,
+        'maps_url': maps_url
+    }
+    consultas = load_queries()
+    consultas.append(registro)
+    save_queries(consultas)
+    print(Fore.CYAN + f"Consulta salva em {DB_FILENAME} ({len(consultas)} registros).\n")
+
 # Menu Principal
 if __name__ == '__main__':
     loading()
@@ -327,7 +414,8 @@ if __name__ == '__main__':
         print(Fore.YELLOW + "7." + Style.RESET_ALL + " Scan de Rede Local")
         print(Fore.YELLOW + "8." + Style.RESET_ALL + " Vulnerability Scanner")
         print(Fore.YELLOW + "9." + Style.RESET_ALL + " Encontrar página admin")
-        print(Fore.YELLOW + "10." + Style.RESET_ALL + " Sair")
+        print(Fore.YELLOW + "10." + Style.RESET_ALL + " Consulta IP")
+        print(Fore.YELLOW + "11." + Style.RESET_ALL + " Sair")
         choice = input(Fore.BLUE + "Opção: ").strip()
         if choice == '1': manage_database()
         elif choice == '2': filter_ips()
@@ -338,7 +426,8 @@ if __name__ == '__main__':
         elif choice == '7': network_scan()
         elif choice == '8': vuln_scan()
         elif choice == '9': find_admin_page()
-        elif choice == '10':
+        elif choice == '10': consulta_ip_info_detalhada()
+        elif choice == '11':
             print(Fore.GREEN + "Saindo...")
             break
         else:
