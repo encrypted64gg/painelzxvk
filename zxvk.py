@@ -43,7 +43,7 @@ def show_banner():
         "╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚═╝  ╚═╝"
     )
     print(Fore.RED + art)
-    print(Fore.YELLOW + "ZxVk Terminal")
+    print(Fore.YELLOW + "By encrypted64_ - discord.gg/TWHMMJpRMb")
 
 
 def loading():
