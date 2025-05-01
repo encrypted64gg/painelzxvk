@@ -67,7 +67,7 @@ def show_banner():
         "╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚═╝  ╚═╝"
     )
     print(Fore.RED + art)
-    print(Fore.YELLOW + "ZxVk Terminal")
+    print(Fore.YELLOW + "By encrypted64 | Discord: https://discord.gg/993tCR8F")
 
 
 def loading():
@@ -292,12 +292,10 @@ def find_admin_page():
                     paths.add(p)
     except:
         pass
-    # Lista comum de diretórios
     common_paths = [
         '/admin', '/administrator', '/login', '/admin/login', '/user/login',
         '/controlpanel', '/cpanel', '/adm', '/admin.php', '/admin.html'
     ]
-    # Adiciona da common e do robots
     to_check = set(common_paths) | paths
     found = []
     lock = threading.Lock()
@@ -338,12 +336,7 @@ def find_admin_page():
 
     # Consulta ip - 10
 def consulta_ip_info_detalhada():
-    """
-    Consulta informações completas de geolocalização e rede de um IP ou domínio
-    usando a API do ip-api.com, salva o resultado em JSON e oferece busca no Google Maps.
-    """
     alvo = input(Fore.YELLOW + "Informe IP ou domínio: ").strip()
-    # Resolve domínio para IP, se necessário
     try:
         ip = socket.gethostbyname(alvo)
     except socket.gaierror:
@@ -383,11 +376,9 @@ def consulta_ip_info_detalhada():
     print(Fore.GREEN + f"Mobile:           {resp.get('mobile')}")
     print(Fore.GREEN + f"Proxy:            {resp.get('proxy')}")
 
-    # Prompt de pesquisa no Google Maps logo após 'Proxy'
     maps_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
     print(Fore.YELLOW + f"Google Maps: {maps_url}")
 
-    # Salva consulta no JSON
     registro = {
         'timestamp': datetime.utcnow().isoformat() + 'Z',
         'query': resp.get('query'),
