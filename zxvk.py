@@ -7,6 +7,8 @@ import threading
 import time
 import random
 import string
+import psutil
+import pyfiglet
 import secrets
 import requests  
 import subprocess  
@@ -15,7 +17,7 @@ from colorama import init, Fore, Style
 
 init(autoreset=True)
 
-# Database JSON para armazenar consultas
+# database json
 DB_FILENAME = 'ip_queries.json'
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), DB_FILENAME)
 if not os.path.exists(DB_PATH):
@@ -57,26 +59,44 @@ def save_data(data):
 
 # UI
 
-def show_banner():
-    art = (
-        "███████╗██╗  ██╗██╗   ██╗██╗  ██╗\n"
-        "╚══███╔╝╚██╗██╔╝██║   ██║██║ ██╔╝\n"
-        "  ███╔╝  ╚███╔╝ ██║   ██║█████╔╝ \n"
-        " ██╔╝    ██╔██╗ ╚██╗ ██╔╝██╔═██╗ \n"
-        "███████╗██╔╝ ██╗ ╚████╔╝ ██║  ██╗\n"
-        "╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚═╝  ╚═╝"
-    )
-    print(Fore.RED + art)
-    print(Fore.YELLOW + "By encrypted64 | Discord: https://discord.gg/993tCR8F")
+def center_text(text: str) -> str:
+    cols = os.get_terminal_size().columns
+    return '\n'.join(line.center(cols) for line in text.splitlines())
 
+def show_system_info():
+    cpu = psutil.cpu_percent(interval=None)
+    ram = psutil.virtual_memory().percent
+    info = f"CPU: {cpu:5.1f}% | RAM: {ram:5.1f}%"
+    print(Fore.MAGENTA + center_text(info))
 
-def loading():
-    for i in range(3):
-        print(Fore.CYAN + 'Carregando' + '.' * (i+1), end='\r')
-        time.sleep(0.7)
-    print(' ' * 30, end='\r')
+def show_banner(text='ZXVK', font='ansi_shadow'):
+    art = pyfiglet.figlet_format(text, font=font)
+    print(Fore.GREEN + center_text('Executado com sucesso.'))
+    print(Fore.CYAN + center_text('Sistema de segurança ativado.') + '\n')
+    print(Fore.CYAN + center_text(art) + '\n')
 
-# 1: Gerenciar Database
+    show_system_info()
+
+def loading_bar(steps=50, delay=0.1):
+    cols = os.get_terminal_size().columns
+    psutil.cpu_percent(interval=None)
+    for i in range(steps + 1):
+        filled = i
+        empty = steps - i
+        pct = int((i/steps)*100)
+        bar = '#' * filled + '-' * empty
+        cpu = psutil.cpu_percent(interval=None)
+        ram = psutil.virtual_memory().percent
+        line = f'[{bar}] {pct:3d}%   CPU: {cpu:5.1f}%   RAM: {ram:5.1f}%'
+        print(Fore.CYAN + line.center(cols), end='\r')
+        time.sleep(delay)
+    print()
+
+def show_credits():
+    credit = 'By encrypted64 | Discord: https://discord.gg/993tCR8F'
+    print(Style.DIM + Fore.YELLOW + center_text(credit))
+
+# 1: gerenciar database
 def manage_database():
     data = load_data()
     while True:
@@ -114,7 +134,7 @@ def manage_database():
         else:
             print(Fore.RED + "Opção inválida!")
 
-# 2: Filtrar IPs de Site
+# 2: filtrar ips de sites
 def filter_ips():
     domain = input(Fore.YELLOW + "Domínio (ex: google.com): ").strip()
     try:
@@ -135,7 +155,7 @@ def filter_ips():
     except Exception as e:
         print(Fore.RED + f"Erro: {e}")
 
-# 3: IP Tracker
+# 3: ips no database
 def ip_tracker():
     data = load_data()
     if data:
@@ -145,7 +165,7 @@ def ip_tracker():
     else:
         print(Fore.RED + "Database vazio.")
 
-# 4: DoS Test Local
+# 4: dos teste
 def dos_test():
     target = input(Fore.YELLOW + "Alvo (IP ou domínio): ").strip()
     port = int(input(Fore.YELLOW + "Porta: "))
@@ -168,7 +188,7 @@ def dos_test():
     except KeyboardInterrupt:
         print(Fore.RED + "DoS interrompido.")
 
-# 5: Flood Site (El Diablo)
+# 5: flood site
 def random_string(length=8):
     return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
 
@@ -195,7 +215,7 @@ def flood_site():
     except KeyboardInterrupt:
         print(Fore.RED + "Flood encerrado.")
 
-# 6: WiFi Pentest & Scan
+# 6: wifi pentest e scan 
 def wifi_scan():
     iface = input(Fore.YELLOW + "Interface WiFi (ex: wlan0): ").strip()
     print(Fore.CYAN + "Escaneando redes... (root necessário)")
@@ -208,7 +228,7 @@ def wifi_scan():
     except Exception as e:
         print(Fore.RED + f"Erro: {e}")
 
-# 7: Network Scan com GeoIP e detalhes
+# 7: network scan com geoip e detalhes
 def network_scan():
     raw = input(Fore.YELLOW + "Prefixo de rede (ex: 192.168.1 ou 10.0.0): ").strip()
     parts = raw.split('.')
@@ -252,7 +272,7 @@ def network_scan():
     save_data(data)
     print(Fore.GREEN + f"{len(alive)} entries salvos.")
 
-# 8: Vulnerability Scanner
+# 8: vulnerability scanner
 def vuln_scan():
     url = input(Fore.YELLOW + "URL alvo (http/https): ").strip()
     print(Fore.CYAN + "Iniciando verificação de vulnerabilidades...")
@@ -277,11 +297,10 @@ def vuln_scan():
     except Exception as e:
         print(Fore.RED + f"Erro: {e}")
 
-# 9: Encontrar página admin de um site (brute-force + crawling)
+# 9: encontrar pags admin
 def find_admin_page():
     domain = input(Fore.YELLOW + "Digite a URL base (ex: https://exemplo.com): ").strip().rstrip('/')
     print(Fore.CYAN + f"Iniciando busca avançada de páginas admin em {domain}...")
-    # Carrega robots.txt para caminhos proibidos
     paths = set()
     try:
         robots = requests.get(domain + '/robots.txt', timeout=5).text
@@ -310,7 +329,6 @@ def find_admin_page():
                     found.append(url)
             else:
                 print(Fore.YELLOW + f"[{resp.status_code}] {url}")
-            # Parse links para discovery
             if 'text/html' in resp.headers.get('Content-Type',''):
                 for match in re.findall(r'href=["\']?([^"\'>]+)["\']?', resp.text, re.IGNORECASE):
                     if match.startswith('/') and match not in to_check:
@@ -318,7 +336,6 @@ def find_admin_page():
         except Exception as e:
             print(Fore.RED + f"Erro {url}: {e}")
 
-    # Threaded scan
     threads = []
     for path in list(to_check):
         t = threading.Thread(target=check_path, args=(path,), daemon=True)
@@ -334,8 +351,12 @@ def find_admin_page():
         print(Fore.CYAN + f"Total encontradas: {len(found)}")
     input(Fore.BLUE + "Pressione Enter para voltar ao menu...")
 
-    # Consulta ip - 10
+# 10 - consulta ip
 def consulta_ip_info_detalhada():
+    """
+    Consulta informações completas de geolocalização e rede de um IP ou domínio
+    usando a API do ip-api.com, salva o resultado em JSON e oferece busca no Google Maps.
+    """
     alvo = input(Fore.YELLOW + "Informe IP ou domínio: ").strip()
     try:
         ip = socket.gethostbyname(alvo)
@@ -360,7 +381,6 @@ def consulta_ip_info_detalhada():
         print(Fore.RED + f"Falha na consulta: {resp.get('message', 'unknown error')}")
         return
 
-    # Exibe resultados
     print(Style.BRIGHT + Fore.GREEN + f"IP:               {resp.get('query')}")
     print(Fore.GREEN + f"País:             {resp.get('country')} ({resp.get('countryCode')})")
     print(Fore.GREEN + f"Região:           {resp.get('regionName')} ({resp.get('region')})")
@@ -390,9 +410,9 @@ def consulta_ip_info_detalhada():
     save_queries(consultas)
     print(Fore.CYAN + f"Consulta salva em {DB_FILENAME} ({len(consultas)} registros).\n")
 
-# Menu Principal
 if __name__ == '__main__':
-    loading()
+    loading_bar()
+    show_credits()
     show_banner()
     while True:
         print(Fore.BLUE + "=== Painel Principal ===")
@@ -419,7 +439,10 @@ if __name__ == '__main__':
         elif choice == '9': find_admin_page()
         elif choice == '10': consulta_ip_info_detalhada()
         elif choice == '11':
-            print(Fore.GREEN + "Saindo...")
+            print(Fore.GREEN + "Saindo..."); 
+            loading_bar();
+            show_credits(); 
+            show_banner();
             break
         else:
             print(Fore.RED + "Opção inválida!")
