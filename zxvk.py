@@ -14,7 +14,7 @@ import os,sys
 from datetime import datetime
 import json,socket,threading,time,random,string,psutil,pyfiglet,secrets,requests,subprocess
 from queue import Queue
-import getpass,hashlib,re
+import getpass,hashlib,crypto,re
 from colorama import init,Fore,Style
 init(autoreset=_A)
 DB_FILENAME='ip_queries.json'
@@ -138,27 +138,35 @@ def wifi_scan():
 		for D in A:print(_E+D)
 	except Exception as E:print(Fore.RED+f"Erro: {E}")
 def network_scan():
-	J='N/A';K=input(Fore.YELLOW+'Prefixo de rede (ex: 192.168.1 ou 10.0.0): ').strip();F=K.split('.')
-	if len(F)not in(3,4):print(Fore.RED+'Prefixo inválido. Use X.Y.Z ou X.Y.Z.W');return
-	G='.'.join(F[:3])+'.';print(Fore.CYAN+f"Escaneando hosts em {G}1-254...");B=[]
-	def L(ip):
-		A=['ping','-n'if os.name=='nt'else'-c','1',ip]
-		if subprocess.call(A,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)==0:B.append(ip);print(Fore.GREEN+ip)
-	H=[]
-	for M in range(1,255):A=G+str(M);D=threading.Thread(target=L,args=(A,),daemon=_A);D.start();H.append(D)
-	for D in H:D.join()
-	print(Fore.BLUE+f"Scan concluído: {len(B)} hosts ativos.")
-	if not B:print(Fore.YELLOW+'Nenhum host encontrado.');return
-	E=load_data()
-	for A in B:
-		N=int(A.split('.')[0])
-		if N in(10,172,192):C=f"{A} | Private IP"
-		else:
-			try:I=requests.get(f"http://ip-api.com/json/{A}",timeout=3).json();C=f"{A} | ISP: {I.get('isp',J)} | Cidade: {I.get('city',J)}"
-			except:C=f"{A} | ISP/Cidade: N/A"
-		print(Fore.YELLOW+C)
-		if C not in E:E.append(C)
-	save_data(E);print(Fore.GREEN+f"{len(B)} entries salvos.")
+	L='N/A';M=input(Fore.YELLOW+'Prefixo inicial (ex: X.Y.Z.1): ').strip();N=input(Fore.YELLOW+'Prefixo final   (ex: X.Y.W.1): ').strip()
+	def G(raw):
+		A=raw.split('.')
+		if len(A)!=4 or A[3]!='1':raise ValueError('Use formato X.Y.Z.1')
+		return int(A[0]),int(A[1]),int(A[2])
+	try:O,P,H=G(M);Q,Q,I=G(N)
+	except Exception as R:print(Fore.RED+f"Erro no formato: {R}");return
+	if H>I:print(Fore.RED+'Prefixo inicial maior que o final.');return
+	for S in range(H,I+1):
+		D=f"{O}.{P}.{S}.";print(Fore.CYAN+f"\nEscaneando hosts em {D}1-254...\n");B=[]
+		def T(ip):
+			A=['ping','-n'if os.name=='nt'else'-c','1',ip]
+			if subprocess.call(A,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)==0:B.append(ip);print(Fore.GREEN+ip)
+		J=[]
+		for U in range(1,255):A=D+str(U);E=threading.Thread(target=T,args=(A,),daemon=_A);E.start();J.append(E)
+		for E in J:E.join()
+		print(Fore.BLUE+f"Scan concluído para {D}1/24: {len(B)} hosts ativos.")
+		if not B:print(Fore.YELLOW+'Nenhum host encontrado nesta rede.')
+		F=load_data()
+		for A in B:
+			V=int(A.split('.')[0])
+			if V in(10,172,192):C=f"{A} | Private IP"
+			else:
+				try:K=requests.get(f"http://ip-api.com/json/{A}",timeout=3).json();C=f"{A} | ISP: {K.get('isp',L)} | Cidade: {K.get('city',L)}"
+				except:C=f"{A} | ISP/Cidade: N/A"
+			print(Fore.YELLOW+C)
+			if C not in F:F.append(C)
+		save_data(F);print(Fore.GREEN+f"{len(B)} entradas salvas para {D}1/24.")
+	print(Fore.CYAN+'\nTodas as redes da faixa escaneadas com sucesso.')
 def vuln_scan():
 	A=input(Fore.YELLOW+_L).strip();print(Fore.CYAN+'Iniciando verificação de vulnerabilidades...')
 	try:
@@ -199,14 +207,26 @@ def find_admin_page():
 	else:print(Fore.CYAN+f"Total encontradas: {len(E)}")
 	input(Fore.BLUE+'Pressione Enter para voltar ao menu...')
 def consulta_ip_info_detalhada():
-	'\n    Consulta informações completas de geolocalização e rede de um IP ou domínio\n    usando a API do ip-api.com, salva o resultado em JSON e oferece busca no Google Maps.\n    ';C='query';D=input(Fore.YELLOW+'Informe IP ou domínio: ').strip()
-	try:E=socket.gethostbyname(D)
-	except socket.gaierror:print(Fore.RED+f"Não foi possível resolver domínio: {D}");return
-	print(Fore.CYAN+f"Consultando informações para {E}...\n");I='status,message,query,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,reverse,mobile,proxy'
-	try:A=requests.get(f"http://ip-api.com/json/{E}?fields={I}",timeout=5).json()
-	except requests.RequestException as J:print(Fore.RED+f"Erro na requisição: {J}");return
-	if A.get('status')!='success':print(Fore.RED+f"Falha na consulta: {A.get('message','unknown error')}");return
-	print(Style.BRIGHT+Fore.GREEN+f"IP:               {A.get(C)}");print(Fore.GREEN+f"País:             {A.get('country')} ({A.get('countryCode')})");print(Fore.GREEN+f"Região:           {A.get('regionName')} ({A.get('region')})");print(Fore.GREEN+f"Cidade:           {A.get('city')} | CEP: {A.get('zip')}");F=A.get('lat');G=A.get('lon');print(Fore.GREEN+f"Coordenadas:      {F}, {G}");print(Fore.GREEN+f"Fuso horário:     {A.get('timezone')}");print(Fore.GREEN+f"ISP:              {A.get('isp')}");print(Fore.GREEN+f"Organização:      {A.get('org')}");print(Fore.GREEN+f"Sistema Autônomo: {A.get('as')}");print(Fore.GREEN+f"Reverse DNS:      {A.get('reverse')}");print(Fore.GREEN+f"Mobile:           {A.get('mobile')}");print(Fore.GREEN+f"Proxy:            {A.get('proxy')}");H=f"https://www.google.com/maps/search/?api=1&query={F},{G}";print(Fore.YELLOW+f"Google Maps: {H}");K={'timestamp':datetime.utcnow().isoformat()+'Z',C:A.get(C),'result':A,'maps_url':H};B=load_queries();B.append(K);save_queries(B);print(Fore.CYAN+f"Consulta salva em {DB_FILENAME} ({len(B)} registros).\n")
+	"\n    Consulta informações completas de geolocalização e rede de um IP ou domínio\n    usando a API do ip‑api.com, salva o resultado em JSON e oferece busca no Google Maps.\n    Se o usuário digitar 'ALL', faz a consulta para todos os registros existentes em database.txt.\n    ";F='query';B=input(Fore.YELLOW+'Informe IP, domínio ou ALL para tudo: ').strip();C=[]
+	if B.upper()=='ALL':
+		from pathlib import Path;G=Path(DB_PATH.replace('.json','.txt'))
+		if not G.exists():print(Fore.RED+'Arquivo de database não encontrado.');return
+		with open(G,'r',encoding=_B)as L:
+			for D in L:
+				D=D.strip()
+				if D:C.append(D.split()[0])
+		if not C:print(Fore.RED+'Nenhum IP/domínio em database.txt.');return
+		print(Fore.CYAN+f"Iniciando consultas para {len(C)} alvos...\n")
+	else:C=[B]
+	for B in C:
+		try:H=socket.gethostbyname(B)
+		except socket.gaierror:print(Fore.RED+f"Não foi possível resolver domínio: {B}");continue
+		print(Fore.CYAN+f"\nConsultando informações para {H}...\n");M='status,message,query,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,reverse,mobile,proxy'
+		try:A=requests.get(f"http://ip-api.com/json/{H}?fields={M}",timeout=5).json()
+		except requests.RequestException as N:print(Fore.RED+f"Erro na requisição: {N}");continue
+		if A.get('status')!='success':print(Fore.RED+f"Falha na consulta: {A.get('message','unknown error')}");continue
+		print(Style.BRIGHT+Fore.GREEN+f"IP:               {A.get(F)}");print(Fore.GREEN+f"País:             {A.get('country')} ({A.get('countryCode')})");print(Fore.GREEN+f"Região:           {A.get('regionName')} ({A.get('region')})");print(Fore.GREEN+f"Cidade:           {A.get('city')} | CEP: {A.get('zip')}");I=A.get('lat');J=A.get('lon');print(Fore.GREEN+f"Coordenadas:      {I}, {J}");print(Fore.GREEN+f"Fuso horário:     {A.get('timezone')}");print(Fore.GREEN+f"ISP:              {A.get('isp')}");print(Fore.GREEN+f"Organização:      {A.get('org')}");print(Fore.GREEN+f"Sistema Autônomo: {A.get('as')}");print(Fore.GREEN+f"Reverse DNS:      {A.get('reverse')}");print(Fore.GREEN+f"Mobile:           {A.get('mobile')}");print(Fore.GREEN+f"Proxy:            {A.get('proxy')}");K=f"https://www.google.com/maps/search/?api=1&query={I},{J}";print(Fore.YELLOW+f"Google Maps: {K}");O={'timestamp':datetime.utcnow().isoformat()+'Z',F:A.get(F),'result':A,'maps_url':K};E=load_queries();E.append(O);save_queries(E);print(Fore.CYAN+f"Consulta salva em {DB_FILENAME} ({len(E)} registros).")
+	print()
 def scan_ports():
 	C=input(Fore.YELLOW+_K).strip()
 	try:D=socket.gethostbyname(C)
